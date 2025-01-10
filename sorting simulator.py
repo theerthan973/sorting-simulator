@@ -1,213 +1,259 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 
-# Global variables
-array = []
-bar_colors = 'gray'
-speed = 100  # milliseconds
-sort_type = 'Bubble Sort'
-canvas = None
-bars = None
-labels = None
-sorting = False  # To control if sorting is active
+class SortingVisualizer:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Advanced Sorting Algorithm Visualizer")
+        self.root.configure(bg='#2C3E50')
+        
+        # Initialize variables
+        self.array = []
+        self.sorting = False
+        self.speed = 100
+        self.array_size = 30
+        self.current_algorithm = None
+        self.merge_steps = []
+        self.quick_steps = []
+        
+        self.setup_ui()
+        self.setup_plot()
+        self.generate_array()
+    
+    def setup_ui(self):
+        # Style configuration
+        style = ttk.Style()
+        style.theme_use('clam')
+        
+        # Main frame
+        self.main_frame = ttk.Frame(self.root, padding="10")
+        self.main_frame.grid(row=0, column=0, sticky="nsew")
+        
+        # Controls frame
+        controls = ttk.Frame(self.main_frame)
+        controls.grid(row=1, column=0, pady=10)
+        
+        # Array size control
+        ttk.Label(controls, text="Array Size:").grid(row=0, column=0, padx=5)
+        self.size_var = tk.IntVar(value=30)
+        ttk.Scale(controls, from_=10, to=100, variable=self.size_var,
+                 orient='horizontal', length=200).grid(row=0, column=1, padx=5)
+        
+        # Speed control
+        ttk.Label(controls, text="Speed (ms):").grid(row=0, column=2, padx=5)
+        self.speed_var = tk.IntVar(value=100)
+        ttk.Scale(controls, from_=1, to=500, variable=self.speed_var,
+                 orient='horizontal', length=200).grid(row=0, column=3, padx=5)
+        
+        # Algorithm selection
+        ttk.Label(controls, text="Algorithm:").grid(row=1, column=0, padx=5, pady=10)
+        algorithms = ['Bubble Sort', 'Selection Sort', 'Insertion Sort', 'Quick Sort', 'Merge Sort']
+        self.algo_var = tk.StringVar(value='Bubble Sort')
+        ttk.Combobox(controls, textvariable=self.algo_var, 
+                    values=algorithms).grid(row=1, column=1, padx=5, pady=10)
+        
+        # Buttons
+        button_frame = ttk.Frame(controls)
+        button_frame.grid(row=1, column=2, columnspan=2, pady=10)
+        
+        ttk.Button(button_frame, text="Generate Array", 
+                  command=self.generate_array).pack(side=tk.LEFT, padx=5)
+        self.start_button = ttk.Button(button_frame, text="Start Sorting", 
+                                     command=self.start_sorting)
+        self.start_button.pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Stop", 
+                  command=self.stop_sorting).pack(side=tk.LEFT, padx=5)
+    
+    def setup_plot(self):
+        self.fig, self.ax = plt.subplots(figsize=(10, 6))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.main_frame)
+        self.canvas.get_tk_widget().grid(row=0, column=0)
+        
+    def generate_array(self):
+        self.stop_sorting()
+        self.array = np.random.randint(1, 100, self.size_var.get())
+        self.update_plot()
+    
+    def update_plot(self, highlights=None):
+        self.ax.clear()
+        colors = ['#3498DB'] * len(self.array)
+        
+        if highlights:
+            for idx, color in highlights.items():
+                if 0 <= idx < len(colors):
+                    colors[idx] = color
+        
+        self.ax.bar(range(len(self.array)), self.array, color=colors)
+        self.ax.set_title(f'{self.algo_var.get()} Visualization')
+        self.canvas.draw()
 
-# Function to generate a random array of 20 numbers
-def generate_array():
-    global array, bars, labels
-    array = np.random.randint(1, 100, 20)  # 20 numbers for visualization
-    ax.clear()
-    bars = ax.bar(range(len(array)), array, color=bar_colors)
-    labels = [ax.text(i, val + 1, str(val), ha="center", va="bottom") for i, val in enumerate(array)]
-    canvas.draw()
+    def start_sorting(self):
+        if self.sorting:
+            return
+        
+        self.sorting = True
+        self.start_button.config(state='disabled')
+        algorithm = self.algo_var.get()
+        
+        if algorithm == 'Quick Sort':
+            self.quick_steps = []
+            self.prepare_quick_sort(0, len(self.array) - 1)
+            self.process_quick_sort()
+        elif algorithm == 'Merge Sort':
+            self.merge_steps = []
+            self.prepare_merge_sort(0, len(self.array) - 1)
+            self.process_merge_sort()
+        elif algorithm == 'Bubble Sort':
+            self.bubble_sort()
+        elif algorithm == 'Selection Sort':
+            self.selection_sort()
+        elif algorithm == 'Insertion Sort':
+            self.insertion_sort()
 
-# Function to draw the array with updated heights and labels
-def draw_array(color_positions=None):
-    color_positions = color_positions or {}
-    for rect, label, height in zip(bars, labels, array):
-        rect.set_height(height)
-        rect.set_color(color_positions.get(height, bar_colors))
-        label.set_y(height + 1)
-        label.set_text(str(height))
-    canvas.draw()
-
-# Sorting Algorithms with after() to prevent blocking
-def bubble_sort_step(i=0, j=0):
-    global sorting
-    if not sorting:
-        return
-    if i < len(array):
-        if j < len(array) - i - 1:
-            if array[j] > array[j + 1]:
-                array[j], array[j + 1] = array[j + 1], array[j]
-            draw_array({array[j]: 'blue', array[j + 1]: 'red'})
-            canvas.get_tk_widget().after(speed, bubble_sort_step, i, j + 1)
-        else:
-            canvas.get_tk_widget().after(speed, bubble_sort_step, i + 1, 0)
-    else:
-        draw_array()  # Final draw with original color
-
-def selection_sort_step(i=0, min_idx=0, j=0):
-    global sorting
-    if not sorting:
-        return
-    if i < len(array):
-        if j < len(array):
-            if array[j] < array[min_idx]:
-                min_idx = j
-            canvas.get_tk_widget().after(speed, selection_sort_step, i, min_idx, j + 1)
-        else:
-            array[i], array[min_idx] = array[min_idx], array[i]
-            draw_array({array[i]: 'blue', array[min_idx]: 'red'})
-            canvas.get_tk_widget().after(speed, selection_sort_step, i + 1, i + 1, i + 2)
-    else:
-        draw_array()  # Final draw with original color
-
-
-def insertion_sort_step(i=1, j=0):
-    global sorting
-    if not sorting:
-        return
-    if i < len(array):
-        key = array[i]
-        j = i - 1
-        while j >= 0 and array[j] > key:
-            array[j + 1] = array[j]
-            j -= 1
-        array[j + 1] = key
-        draw_array({array[j + 1]: 'blue', key: 'red'})
-        canvas.get_tk_widget().after(speed, insertion_sort_step, i + 1)
-    else:
-        draw_array()  # Final draw with original color
-
-def quick_sort_step(stack=None):
-    global sorting
-    if not sorting:
-        return
-    if stack is None:
-        stack = [(0, len(array) - 1)]
-
-    if stack:
-        low, high = stack.pop()
+    def prepare_quick_sort(self, low, high):
         if low < high:
-            pi = partition(low, high)
-            stack.append((low, pi - 1))
-            stack.append((pi + 1, high))
-            draw_array({array[pi]: 'blue'})
-            canvas.get_tk_widget().after(speed, quick_sort_step, stack)
-    else:
-        draw_array()  # Final draw with original color
+            pivot_idx = self.partition(low, high)
+            self.quick_steps.append(('partition', low, high, pivot_idx))
+            self.prepare_quick_sort(low, pivot_idx - 1)
+            self.prepare_quick_sort(pivot_idx + 1, high)
 
+    def process_quick_sort(self, step_index=0):
+        if not self.sorting:
+            return
+        
+        if step_index < len(self.quick_steps):
+            operation, low, high, pivot = self.quick_steps[step_index]
+            self.update_plot({pivot: '#E74C3C', low: '#2ECC71', high: '#2ECC71'})
+            self.root.after(self.speed_var.get(), 
+                          lambda: self.process_quick_sort(step_index + 1))
+        else:
+            self.sorting_complete()
 
-def partition(low, high):
-    pivot = array[high]
-    i = low - 1
-    for j in range(low, high):
-        if array[j] < pivot:
+    def prepare_merge_sort(self, left, right):
+        if left < right:
+            mid = (left + right) // 2
+            self.prepare_merge_sort(left, mid)
+            self.prepare_merge_sort(mid + 1, right)
+            self.merge_steps.append((left, mid, right))
+
+    def process_merge_sort(self, step_index=0):
+        if not self.sorting:
+            return
+        
+        if step_index < len(self.merge_steps):
+            left, mid, right = self.merge_steps[step_index]
+            self.merge(left, mid, right)
+            self.update_plot({left: '#E74C3C', right: '#2ECC71', mid: '#F1C40F'})
+            self.root.after(self.speed_var.get(), 
+                          lambda: self.process_merge_sort(step_index + 1))
+        else:
+            self.sorting_complete()
+
+    def partition(self, low, high):
+        pivot = self.array[high]
+        i = low - 1
+        
+        for j in range(low, high):
+            if self.array[j] <= pivot:
+                i += 1
+                self.array[i], self.array[j] = self.array[j], self.array[i]
+        
+        self.array[i + 1], self.array[high] = self.array[high], self.array[i + 1]
+        return i + 1
+    
+    def merge(self, left, mid, right):
+        left_part = self.array[left:mid + 1].copy()
+        right_part = self.array[mid + 1:right + 1].copy()
+        
+        i = j = 0
+        k = left
+        
+        while i < len(left_part) and j < len(right_part):
+            if left_part[i] <= right_part[j]:
+                self.array[k] = left_part[i]
+                i += 1
+            else:
+                self.array[k] = right_part[j]
+                j += 1
+            k += 1
+        
+        while i < len(left_part):
+            self.array[k] = left_part[i]
             i += 1
-            array[i], array[j] = array[j], array[i]
-    array[i + 1], array[high] = array[high], array[i + 1]
-    return i + 1
+            k += 1
+            
+        while j < len(right_part):
+            self.array[k] = right_part[j]
+            j += 1
+            k += 1
 
-def heap_sort_step(n=None, i=None):
-    global sorting
-    if not sorting:
-        return
-    if n is None:
-        n = len(array)
-        for i in range(n // 2 - 1, -1, -1):
-            heapify(n, i)
-    elif i is not None:
-        if i > 0:
-            array[i], array[0] = array[0], array[i]
-            draw_array({array[i]: 'blue', array[0]: 'red'})
-            canvas.get_tk_widget().after(speed, heap_sort_step, i - 1, None)
-            heapify(i, 0)
-    else:
-        draw_array()  # Final draw with original color
+    def bubble_sort(self, i=0, j=0):
+        if not self.sorting:
+            return
+            
+        if i < len(self.array) - 1:
+            if j < len(self.array) - i - 1:
+                if self.array[j] > self.array[j + 1]:
+                    self.array[j], self.array[j + 1] = self.array[j + 1], self.array[j]
+                self.update_plot({j: '#E74C3C', j + 1: '#2ECC71'})
+                self.root.after(self.speed_var.get(), 
+                              lambda: self.bubble_sort(i, j + 1))
+            else:
+                self.root.after(self.speed_var.get(), 
+                              lambda: self.bubble_sort(i + 1, 0))
+        else:
+            self.sorting_complete()
+    
+    def selection_sort(self, i=0):
+        if not self.sorting:
+            return
+            
+        if i < len(self.array) - 1:
+            min_idx = i
+            for j in range(i + 1, len(self.array)):
+                if self.array[j] < self.array[min_idx]:
+                    min_idx = j
+            
+            self.array[i], self.array[min_idx] = self.array[min_idx], self.array[i]
+            self.update_plot({i: '#2ECC71', min_idx: '#E74C3C'})
+            self.root.after(self.speed_var.get(), 
+                          lambda: self.selection_sort(i + 1))
+        else:
+            self.sorting_complete()
+    
+    def insertion_sort(self, i=1):
+        if not self.sorting:
+            return
+            
+        if i < len(self.array):
+            key = self.array[i]
+            j = i - 1
+            while j >= 0 and self.array[j] > key:
+                self.array[j + 1] = self.array[j]
+                j -= 1
+            self.array[j + 1] = key
+            self.update_plot({i: '#2ECC71', j + 1: '#E74C3C'})
+            self.root.after(self.speed_var.get(), 
+                          lambda: self.insertion_sort(i + 1))
+        else:
+            self.sorting_complete()
+    
+    def stop_sorting(self):
+        self.sorting = False
+        self.start_button.config(state='normal')
+        self.merge_steps = []
+        self.quick_steps = []
+        
+    def sorting_complete(self):
+        self.sorting = False
+        self.start_button.config(state='normal')
+        self.update_plot()
+        messagebox.showinfo("Complete", "Sorting Complete!")
 
-
-def heapify(n, i):
-    largest = i
-    l = 2 * i + 1
-    r = 2 * i + 2
-    if l < n and array[i] < array[l]:
-        largest = l
-    if r < n and array[largest] < array[r]:
-        largest = r
-    if largest != i:
-        array[i], array[largest] = array[largest], array[i]
-        heapify(n, largest)
-
-# Function to start the selected sorting algorithm
-def start_sorting():
-    global sorting
-    sorting = True
-    if sort_type == 'Bubble Sort':
-        bubble_sort_step()
-    elif sort_type == 'Selection Sort':
-        selection_sort_step()
-    elif sort_type == 'Insertion Sort':
-        insertion_sort_step()
-    elif sort_type == 'Quick Sort':
-        quick_sort_step()
-    elif sort_type == 'Heap Sort':
-        heap_sort_step()
-
-def stop_sorting():
-    global sorting
-    sorting = False  # This will stop the ongoing sorting
-
-# Event handler for algorithm selection
-def set_sort_algorithm(algorithm):
-    global sort_type
-    sort_type = algorithm
-
-# Set up the Tkinter window
-root = tk.Tk()
-root.title("Sorting Algorithm Visualizer with Numbers")
-
-# Set up matplotlib figure
-fig, ax = plt.subplots(figsize=(10, 6))
-canvas = FigureCanvasTkAgg(fig, master=root)
-canvas.get_tk_widget().grid(row=0, column=0, columnspan=5)
-
-# Speed Slider
-speed_var = tk.IntVar(value=100)
-speed_label = tk.Label(root, text="Speed (ms)")
-speed_label.grid(row=1, column=0)
-speed_slider = tk.Scale(root, from_=1, to=1000, resolution=1, orient='horizontal', variable=speed_var)
-speed_slider.grid(row=1, column=1)
-
-# Color Selector
-color_var = tk.StringVar(value='gray')
-color_label = tk.Label(root, text="Bar Color")
-color_label.grid(row=1, column=2)
-color_menu = ttk.Combobox(root, textvariable=color_var, values=['gray', 'blue', 'red', 'green', 'purple'])
-color_menu.grid(row=1, column=3)
-
-# Generate Array Button
-generate_button = tk.Button(root, text="Generate Array", command=generate_array)
-generate_button.grid(row=2, column=0)
-
-# Start Sort Button
-sort_button = tk.Button(root, text="Start Sorting", command=start_sorting)
-sort_button.grid(row=2, column=1)
-
-# Stop Sort Button
-stop_button = tk.Button(root, text="Stop Sorting", command=stop_sorting)
-stop_button.grid(row=2, column=2)
-
-# Dropdown for Sorting Algorithm Selection
-sort_label = tk.Label(root, text="Algorithm")
-sort_label.grid(row=2, column=3)
-sort_menu = ttk.Combobox(root, values=['Bubble Sort', 'Selection Sort', 'Insertion Sort', 'Quick Sort', 'Heap Sort'])
-sort_menu.set('Bubble Sort')
-sort_menu.grid(row=2, column=4)
-sort_menu.bind("<<ComboboxSelected>>", lambda event: set_sort_algorithm(sort_menu.get()))
-
-# Initialize and run the window
-generate_array()
-root.mainloop()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = SortingVisualizer(root)
+    root.mainloop()
