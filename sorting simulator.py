@@ -10,7 +10,6 @@ class SortingVisualizer:
         self.root.title("Advanced Sorting Algorithm Visualizer")
         self.root.configure(bg='#2C3E50')
         
-        # Initialize variables
         self.array = []
         self.sorting = False
         self.speed = 100
@@ -24,38 +23,31 @@ class SortingVisualizer:
         self.generate_array()
     
     def setup_ui(self):
-        # Style configuration
         style = ttk.Style()
         style.theme_use('clam')
         
-        # Main frame
         self.main_frame = ttk.Frame(self.root, padding="10")
         self.main_frame.grid(row=0, column=0, sticky="nsew")
         
-        # Controls frame
         controls = ttk.Frame(self.main_frame)
         controls.grid(row=1, column=0, pady=10)
         
-        # Array size control
         ttk.Label(controls, text="Array Size:").grid(row=0, column=0, padx=5)
         self.size_var = tk.IntVar(value=30)
         ttk.Scale(controls, from_=10, to=100, variable=self.size_var,
                  orient='horizontal', length=200).grid(row=0, column=1, padx=5)
         
-        # Speed control
         ttk.Label(controls, text="Speed (ms):").grid(row=0, column=2, padx=5)
         self.speed_var = tk.IntVar(value=100)
         ttk.Scale(controls, from_=1, to=500, variable=self.speed_var,
                  orient='horizontal', length=200).grid(row=0, column=3, padx=5)
         
-        # Algorithm selection
         ttk.Label(controls, text="Algorithm:").grid(row=1, column=0, padx=5, pady=10)
         algorithms = ['Bubble Sort', 'Selection Sort', 'Insertion Sort', 'Quick Sort', 'Merge Sort']
         self.algo_var = tk.StringVar(value='Bubble Sort')
         ttk.Combobox(controls, textvariable=self.algo_var, 
                     values=algorithms).grid(row=1, column=1, padx=5, pady=10)
         
-        # Buttons
         button_frame = ttk.Frame(controls)
         button_frame.grid(row=1, column=2, columnspan=2, pady=10)
         
